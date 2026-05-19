@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="RCC">
+  <title>Rahul Cricketers Club - RCC</title>
+  
+  <!-- Manifest & Favicon -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  
+  <!-- Google Fonts & FontAwesome -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Custom Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Pull To Refresh Overlay -->
+  <div id="pull-to-refresh">
+    <div class="ptr-content">
+      <div class="cricket-ball-spinner">
+        <div class="cricket-ball-seam"></div>
+      </div>
+      <span id="ptr-text">Pull to hard refresh</span>
+    </div>
+  </div>
+
+  <!-- Hard Refresh Loading Screen -->
+  <div id="update-loading-overlay" class="hidden">
+    <div class="loading-container">
+      <div class="cricket-ball-spinner huge">
+        <div class="cricket-ball-seam"></div>
+      </div>
+      <h2>Updating RCC...</h2>
+      <p>Clearing cache and loading the latest version.</p>
+    </div>
+  </div>
+
+  <!-- Role Selection Screen (Modal overlay if not selected) -->
+  <div id="role-selection-modal" class="modal-overlay">
+    <div class="modal-content role-card">
+      <div class="brand-header">
+        <img src="logo-transparent.png" alt="RCC Logo" class="brand-logo-large">
+        <h1>RAHUL CRICKETERS CLUB</h1>
+        <p class="tagline">RCC MANAGEMENT PORTAL</p>
+      </div>
+      
+      <h2>SELECT YOUR PORTAL ACCESS</h2>
+      <p class="description">Select your role to access dashboard, roster, payments, and attendance tracking.</p>
+      
+      <div class="role-buttons">
+        <button id="select-admin-btn" class="btn btn-primary">
+          <i class="fa-solid fa-user-shield"></i>
+          <span>ADMIN ACCESS</span>
+          <small>Edit roster, log payments & mark attendance</small>
+        </button>
+        <button id="select-guest-btn" class="btn btn-secondary">
+          <i class="fa-solid fa-user"></i>
+          <span>GUEST ACCESS</span>
+          <small>View schedules, roster, dashboard & payments</small>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main App Shell -->
+  <div id="app-shell" class="hidden">
+    
+    <!-- Top Header -->
+    <header class="app-header">
+      <div class="header-left">
+        <img src="logo-transparent.png" alt="RCC Logo" class="app-logo">
+        <div class="logo-text">
+          <span class="logo-title">RCC</span>
+          <span class="logo-subtitle">Rahul Cricketers</span>
+        </div>
+      </div>
+      
+      <div class="header-right">
+        <div id="role-badge" class="badge badge-guest">
+          <i class="fa-solid fa-user"></i> <span id="current-role-txt">Guest</span>
+        </div>
+        <button id="switch-role-btn" class="icon-btn" title="Switch Access Role">
+          <i class="fa-solid fa-arrows-spin"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- App Body (Scrollable Container) -->
+    <main class="app-content">
+      
+      <!-- ==================== DASHBOARD VIEW ==================== -->
+      <section id="dashboard-view" class="tab-view active">
+        <div class="sporty-banner">
+          <h2>RCC DASHBOARD</h2>
+          <p>Live Club Overview & Summaries</p>
+        </div>
+
+        <!-- Quick Stats Grid -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon"><i class="fa-solid fa-users"></i></div>
+            <div class="stat-info">
+              <span class="stat-label">Total Squad</span>
+              <span id="dash-total-members" class="stat-value">0</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon"><i class="fa-solid fa-indian-rupee-sign"></i></div>
+            <div class="stat-info">
+              <span class="stat-label">Collection (May)</span>
+              <span id="dash-total-funds" class="stat-value">₹0</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon"><i class="fa-solid fa-clipboard-user"></i></div>
+            <div class="stat-info">
+              <span class="stat-label">Today Present</span>
+              <span id="dash-attendance-today" class="stat-value">0</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon"><i class="fa-solid fa-circle-exclamation text-danger"></i></div>
+            <div class="stat-info">
+              <span class="stat-label">Fund Pending</span>
+              <span id="dash-pending-funds-count" class="stat-value text-danger">0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pending Funds Block -->
+        <div class="dashboard-block block-pending-funds">
+          <div class="block-header">
+            <h3><i class="fa-solid fa-wallet text-warning"></i> PENDING FUNDS LOG</h3>
+            <span class="month-badge text-gold" id="pending-current-month">May 2026</span>
+          </div>
+          
+          <div class="search-filter-box">
+            <input type="text" id="pending-search-input" placeholder="Search pending players...">
+          </div>
+
+          <div class="pending-list-container">
+            <ul id="pending-funds-list" class="pending-list">
+              <!-- Dynamically populated -->
+            </ul>
+          </div>
+        </div>
+
+        <!-- Club Info Quick Panel -->
+        <div class="dashboard-block">
+          <div class="block-header">
+            <h3><i class="fa-solid fa-star text-gold"></i> QUICK ACTIONS</h3>
+          </div>
+          <div class="quick-actions-grid">
+            <button class="action-card-btn" onclick="switchTab('roster')">
+              <i class="fa-solid fa-user-plus text-primary"></i>
+              <span> Roster</span>
+            </button>
+            <button class="action-card-btn" onclick="switchTab('payments')">
+              <i class="fa-solid fa-file-invoice-dollar text-success"></i>
+              <span>Payments</span>
+            </button>
+            <button class="action-card-btn" onclick="switchTab('attendance')">
+              <i class="fa-solid fa-clock text-warning"></i>
+              <span>Attendance</span>
+            </button>
+            <button class="action-card-btn" id="dash-reset-db">
+              <i class="fa-solid fa-rotate-left text-danger"></i>
+              <span>Reset Data</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== ROSTER / MEMBERS VIEW ==================== -->
+      <section id="roster-view" class="tab-view">
+        <div class="section-header">
+          <h2>CLUB MEMBERS</h2>
+          <button id="add-player-btn" class="btn btn-primary btn-sm admin-only">
+            <i class="fa-solid fa-plus"></i> Add Player
+          </button>
+        </div>
+
+        <!-- Filter bar -->
+        <div class="search-bar">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" id="roster-search" placeholder="Search by name, number, role, or blood group...">
+        </div>
+
+        <!-- Roster Grid -->
+        <div id="roster-grid" class="roster-grid">
+          <!-- Dynamically populated -->
+        </div>
+      </section>
+
+      <!-- ==================== PAYMENTS VIEW ==================== -->
+      <section id="payments-view" class="tab-view">
+        <div class="section-header">
+          <h2>FUNDS & PAYMENTS</h2>
+        </div>
+
+        <!-- Month Filter and Stats Panel -->
+        <div class="payment-filters card-dark">
+          <div class="filter-row">
+            <label for="payment-month-select">Select Month:</label>
+            <select id="payment-month-select" class="form-control">
+              <option value="2026-05" selected>May 2026</option>
+              <option value="2026-04">April 2026</option>
+              <option value="2026-03">March 2026</option>
+              <option value="2026-02">February 2026</option>
+              <option value="2026-01">January 2026</option>
+            </select>
+          </div>
+          
+          <div class="payment-summary-bar">
+            <div class="summary-item">
+              <span class="label">Target Collection</span>
+              <span id="payment-target-amount" class="val text-gold">₹0</span>
+            </div>
+            <div class="summary-item">
+              <span class="label">Collected</span>
+              <span id="payment-collected-amount" class="val text-success">₹0</span>
+            </div>
+            <div class="summary-item">
+              <span class="label">Pending</span>
+              <span id="payment-pending-amount" class="val text-danger">₹0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Payment Members List -->
+        <div class="payment-list-card">
+          <div class="search-bar small">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="payment-search" placeholder="Search players in payments...">
+          </div>
+          <div id="payments-list" class="payments-list">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== ATTENDANCE VIEW ==================== -->
+      <section id="attendance-view" class="tab-view">
+        <div class="section-header flex-col align-start">
+          <h2>ATTENDANCE MANAGER</h2>
+          <p class="subtitle text-gray">Only Entry Time is tracked</p>
+        </div>
+
+        <!-- Date Selector & Day Stats -->
+        <div class="attendance-control card-dark">
+          <div class="filter-row">
+            <label for="attendance-date">Date:</label>
+            <input type="date" id="attendance-date" class="form-control">
+          </div>
+          <div class="attendance-summary">
+            <div class="progress-container">
+              <span id="attendance-stats-text">Present: 0 / 0 Players</span>
+              <div class="progress-bar-bg">
+                <div id="attendance-progress-fill" class="progress-bar-fill" style="width: 0%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="search-bar">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" id="attendance-search" placeholder="Search player to mark attendance...">
+        </div>
+
+        <!-- Attendance List -->
+        <div id="attendance-list" class="attendance-list">
+          <!-- Dynamically populated -->
+        </div>
+      </section>
+      
+    </main>
+
+    <!-- Bottom Navigation Bar -->
+    <nav class="app-nav">
+      <button class="nav-item active" data-tab="dashboard">
+        <i class="fa-solid fa-chart-line"></i>
+        <span>Dashboard</span>
+      </button>
+      <button class="nav-item" data-tab="roster">
+        <i class="fa-solid fa-users"></i>
+        <span>Roster</span>
+      </button>
+      <button class="nav-item" data-tab="payments">
+        <i class="fa-solid fa-indian-rupee-sign"></i>
+        <span>Payments</span>
+      </button>
+      <button class="nav-item" data-tab="attendance">
+        <i class="fa-solid fa-calendar-check"></i>
+        <span>Attendance</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- Modal: Add / Edit Player -->
+  <div id="player-modal" class="modal-overlay hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="player-modal-title">Add New Player</h3>
+        <button class="close-modal-btn">&times;</button>
+      </div>
+      <form id="player-form">
+        <input type="hidden" id="edit-player-id">
+        
+        <div class="form-group">
+          <label for="player-name">Full Name *</label>
+          <input type="text" id="player-name" required placeholder="Enter full name" class="form-control">
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group col">
+            <label for="player-number">Jersey Number *</label>
+            <input type="number" id="player-number" required placeholder="Jersey #" min="0" max="999" class="form-control">
+          </div>
+          <div class="form-group col">
+            <label for="player-whatsapp">WhatsApp Number</label>
+            <input type="tel" id="player-whatsapp" placeholder="WhatsApp (10 digits)" pattern="[0-9]{10}" class="form-control">
+          </div>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group col">
+            <label for="player-role">Role *</label>
+            <select id="player-role" required class="form-control">
+              <option value="Batsman">Batsman</option>
+              <option value="Bowler">Bowler</option>
+              <option value="All-rounder">All-rounder</option>
+              <option value="Wicketkeeper-Batsman">Wicketkeeper-Batsman</option>
+            </select>
+          </div>
+          <div class="form-group col">
+            <label for="player-blood">Blood Group</label>
+            <select id="player-blood" class="form-control">
+              <option value="">Unknown</option>
+              <option value="A+">A+</option>
+              <option value="A-">A-</option>
+              <option value="B+">B+</option>
+              <option value="B-">B-</option>
+              <option value="O+">O+</option>
+              <option value="O-">O-</option>
+              <option value="AB+">AB+</option>
+              <option value="AB-">AB-</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group col">
+            <label for="player-batting">Batting Style *</label>
+            <select id="player-batting" required class="form-control">
+              <option value="Right-hand bat">Right-hand bat</option>
+              <option value="Left-hand bat">Left-hand bat</option>
+            </select>
+          </div>
+          <div class="form-group col">
+            <label for="player-bowling">Bowling Style</label>
+            <select id="player-bowling" class="form-control">
+              <option value="None">None</option>
+              <option value="Right-arm fast">Right-arm fast</option>
+              <option value="Right-arm medium">Right-arm medium</option>
+              <option value="Right-arm offbreak">Right-arm offbreak</option>
+              <option value="Right-arm legbreak">Right-arm legbreak</option>
+              <option value="Left-arm fast">Left-arm fast</option>
+              <option value="Left-arm medium">Left-arm medium</option>
+              <option value="Left-arm orthodox">Left-arm orthodox</option>
+              <option value="Left-arm chinaman">Left-arm chinaman</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary close-modal-btn">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Player</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Log Payment -->
+  <div id="payment-modal" class="modal-overlay hidden">
+    <div class="modal-content small">
+      <div class="modal-header">
+        <h3>Log Member Payment</h3>
+        <button class="close-payment-modal-btn">&times;</button>
+      </div>
+      <form id="payment-form">
+        <input type="hidden" id="payment-player-id">
+        <input type="hidden" id="payment-month-val">
+        
+        <div class="payment-player-info">
+          <span id="payment-player-name" class="name">Player Name</span>
+          <span id="payment-player-number" class="number">#00</span>
+          <span id="payment-month-txt" class="month">Month</span>
+        </div>
+
+        <div class="form-group">
+          <label for="payment-status">Status</label>
+          <select id="payment-status" class="form-control">
+            <option value="Paid">Paid</option>
+            <option value="Pending">Pending</option>
+          </select>
+        </div>
+
+        <div id="payment-details-fields">
+          <div class="form-group">
+            <label for="payment-amount">Amount (₹)</label>
+            <input type="number" id="payment-amount" class="form-control" value="500" min="0">
+          </div>
+          <div class="form-group">
+            <label for="payment-date">Date Paid</label>
+            <input type="date" id="payment-date" class="form-control">
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary close-payment-modal-btn">Cancel</button>
+          <button type="submit" class="btn btn-success">Save Payment</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Circular Clock Picker for Attendance -->
+  <div id="clock-picker-modal" class="modal-overlay hidden">
+    <div class="modal-content clock-modal">
+      <div class="modal-header">
+        <h3>Manual Entry Time</h3>
+        <button class="close-clock-btn">&times;</button>
+      </div>
+      
+      <div class="clock-picker-container">
+        
+        <!-- Display chosen time -->
+        <div class="clock-display">
+          <span id="clock-display-hours" class="active">06</span>
+          <span class="colon">:</span>
+          <span id="clock-display-minutes">30</span>
+          <div class="ampm-toggle">
+            <button id="clock-ampm-am" class="active">AM</button>
+            <button id="clock-ampm-pm">PM</button>
+          </div>
+        </div>
+
+        <!-- Clock Mode Selector (Hours/Minutes) -->
+        <div class="clock-mode-selector">
+          <span id="clock-mode-hours" class="active">Select Hour</span>
+          <span id="clock-mode-minutes">Select Minute</span>
+        </div>
+
+        <!-- The Circular Clock Face -->
+        <div class="clock-face-wrapper">
+          <div class="clock-face" id="clock-face-element">
+            <!-- Center Pivot dot -->
+            <div class="clock-center"></div>
+            <!-- Clock Hand -->
+            <div class="clock-hand" id="clock-hand-element">
+              <div class="clock-hand-line"></div>
+              <div class="clock-hand-circle"></div>
+            </div>
+            <!-- Clock numbers container (populated via JS) -->
+            <div id="clock-numbers" class="clock-numbers-container"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="modal-footer clock-footer">
+        <button id="clock-btn-now" class="btn btn-secondary btn-now-clock">
+          <i class="fa-solid fa-clock"></i> Set to Now
+        </button>
+        <div class="clock-action-buttons">
+          <button type="button" class="btn btn-secondary close-clock-btn">Cancel</button>
+          <button id="clock-btn-confirm" class="btn btn-primary">Confirm</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom Alert/Toast Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Custom JS Application logic -->
+  <script src="app.js"></script>
+</body>
+</html>
