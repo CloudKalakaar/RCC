@@ -64,12 +64,13 @@ let currentRole = null; // 'admin' or 'guest'
 
 // Initialize Database
 function initDatabase(forceReset = false) {
-  // Clear old seed/mock data from previous versions if detected
+  // One-time migration: clear legacy mock data (IDs were single-letter like 'p1','p2')
+  // Real player IDs are timestamped like 'rcc_p_1716XXXXXXXXX' so we only purge single-char IDs
   if (localStorage.getItem('rcc_players')) {
     try {
       const localPlayers = JSON.parse(localStorage.getItem('rcc_players'));
-      const hasMockData = localPlayers.some(p => p.id === 'p1' || p.id === 'p2' || p.id.startsWith('p_'));
-      if (hasMockData) {
+      const hasLegacyMock = localPlayers.some(p => /^p\d+$/.test(p.id));
+      if (hasLegacyMock) {
         localStorage.removeItem('rcc_players');
         localStorage.removeItem('rcc_payments');
         localStorage.removeItem('rcc_attendance');
@@ -418,7 +419,7 @@ function renderDashboardPending() {
   });
   
   if (filtered.length === 0) {
-    container.innerHTML = '<li class="text-gray" style="text-align: center; padding: 16px; list-style:none;">No pending payments found!</li>';
+    container.innerHTML = '<li class="text-gray" style="text-align: center; padding: 16px; list-style:none;">All members have contributed! 🎉</li>';
     return;
   }
   
@@ -436,7 +437,7 @@ function renderDashboardPending() {
       ? `<button class="pending-action-btn" onclick="quickCollectPayment('${p.id}', '2026-05')">Collect</button>`
       : `<span class="pending-months-badge">Due</span>`;
 
-    const nudgeText = `Hi ${p.name}, this is a friendly reminder from RCC regarding your pending subscription fee of ₹500 for ${getMonthNameByNum('05')} 2026. Please clear it at your convenience. Thanks!`;
+    const nudgeText = `Hi ${p.name}, this is a friendly reminder from RCC regarding your pending club fund contribution for ${getMonthNameByNum('05')} 2026. Please send your contribution at your convenience. Thanks! 🏁`;
     const whatsappHtml = p.whatsapp 
       ? `<a href="${getWhatsAppLink(p.whatsapp, p.name, nudgeText)}" target="_blank" class="pending-whatsapp-btn" title="Nudge on WhatsApp">
           <i class="fa-brands fa-whatsapp text-success"></i>
@@ -602,7 +603,7 @@ function savePlayerForm() {
   } else {
     // Add Player
     const newPlayer = {
-      id: 'p_' + Date.now(),
+      id: 'rcc_p_' + Date.now(),
       name,
       number,
       whatsapp,
@@ -655,18 +656,19 @@ function renderPayments() {
   
   listContainer.innerHTML = '';
   
-  // Compute target amount: target is ₹500 per player
-  const targetAmount = players.length * 500;
-  
-  // Fetch logs for this month
+  // Fetch fund logs for this month
   const monthPayments = payments.filter(p => p.month === monthVal && p.status === 'Paid');
   const collectedAmount = monthPayments.reduce((sum, p) => sum + p.amount, 0);
-  const pendingAmount = targetAmount - collectedAmount;
+  // Count players who have NOT contributed this month
+  const notContributedCount = players.filter(p => {
+    const log = payments.find(pay => pay.playerId === p.id && pay.month === monthVal);
+    return !log || log.status !== 'Paid';
+  }).length;
 
   // Render Stats
-  document.getElementById('payment-target-amount').textContent = `₹${targetAmount}`;
+  document.getElementById('payment-target-amount').textContent = `${notContributedCount} players`;
   document.getElementById('payment-collected-amount').textContent = `₹${collectedAmount}`;
-  document.getElementById('payment-pending-amount').textContent = `₹${pendingAmount}`;
+  document.getElementById('payment-pending-amount').textContent = `${notContributedCount} pending`;
 
   // Filter players by search
   const filteredPlayers = players.filter(p => {
@@ -686,9 +688,9 @@ function renderPayments() {
     const row = document.createElement('div');
     row.className = `payment-row ${isPaid ? 'paid' : 'pending'}`;
     
-    const badgeText = isPaid ? `Paid ₹${payLog.amount}` : 'Pending';
+    const badgeText = isPaid ? `₹${payLog.amount}` : 'Not Contributed';
     const badgeClass = isPaid ? 'payment-status-badge paid' : 'payment-status-badge pending';
-    const datePaidText = isPaid ? `On ${formatDateDisplay(payLog.date)}` : 'Fees due';
+    const datePaidText = isPaid ? `On ${formatDateDisplay(payLog.date)}` : 'No fund for month';
 
     // Click handler only triggers modal if Admin
     row.addEventListener('click', () => {
@@ -731,11 +733,11 @@ function loadPaymentLogForModal(playerId, monthVal) {
   
   if (payLog) {
     statusSelect.value = payLog.status;
-    amountInput.value = payLog.amount || 500;
+    amountInput.value = payLog.amount || '';
     dateInput.value = payLog.date || getTodayDateString();
   } else {
     statusSelect.value = 'Paid';
-    amountInput.value = 500;
+    amountInput.value = '';
     dateInput.value = getTodayDateString();
   }
   
@@ -765,23 +767,30 @@ function savePaymentForm() {
   const playerId = document.getElementById('payment-player-id').value;
   const month = document.getElementById('payment-month-select-modal').value;
   const status = document.getElementById('payment-status').value;
-  const amount = parseInt(document.getElementById('payment-amount').value) || 0;
+  const amountRaw = parseFloat(document.getElementById('payment-amount').value);
   const date = document.getElementById('payment-date').value;
 
+  // Validate amount when marking as contributed
+  if (status === 'Paid' && (!amountRaw || amountRaw <= 0)) {
+    showToast('Please enter a valid fund amount.', 'danger');
+    return;
+  }
+
+  const amount = status === 'Paid' ? amountRaw : 0;
   const player = players.find(p => p.id === playerId);
   
   // Find or create record
   const logIndex = payments.findIndex(pay => pay.playerId === playerId && pay.month === month);
   
   if (logIndex > -1) {
-    payments[logIndex] = { ...payments[logIndex], status, amount: status === 'Paid' ? amount : 0, date: status === 'Paid' ? date : '' };
+    payments[logIndex] = { ...payments[logIndex], status, amount, date: status === 'Paid' ? date : '' };
   } else {
     payments.push({
       id: 'pay_' + Date.now(),
       playerId,
       month,
       status,
-      amount: status === 'Paid' ? amount : 0,
+      amount,
       date: status === 'Paid' ? date : ''
     });
   }
@@ -792,7 +801,12 @@ function savePaymentForm() {
   // Refresh views
   const activeTab = document.querySelector('.nav-item.active').dataset.tab;
   renderView(activeTab);
-  showToast(`Payment updated for ${player.name}`, 'success');
+  const parts = month.split('-');
+  const monthLabel = `${getMonthNameByNum(parts[1])} ${parts[0]}`;
+  const msg = status === 'Paid'
+    ? `₹${amount} fund recorded for ${player.name} (${monthLabel})`
+    : `Marked ${player.name} as not contributed for ${monthLabel}`;
+  showToast(msg, 'success');
 }
 
 // -------------------------------------------------------------
