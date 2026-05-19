@@ -18,52 +18,9 @@ if ('serviceWorker' in navigator) {
 // -------------------------------------------------------------
 // SEED DATA & DATABASE (LOCAL STORAGE)
 // -------------------------------------------------------------
-const MOCK_PLAYERS = [
-  { id: 'p1', name: 'Rahul Dravid', number: 19, role: 'Batsman', batting: 'Right-hand bat', bowling: 'Right-arm offbreak', blood: 'O+', featured: true, whatsapp: '9876543210' },
-  { id: 'p2', name: 'Virat Kohli', number: 18, role: 'Batsman', batting: 'Right-hand bat', bowling: 'Right-arm medium', blood: 'B+', whatsapp: '9876543211' },
-  { id: 'p3', name: 'Rohit Sharma', number: 45, role: 'Batsman', batting: 'Right-hand bat', bowling: 'Right-arm offbreak', blood: 'A+', whatsapp: '9876543212' },
-  { id: 'p4', name: 'MS Dhoni', number: 7, role: 'Wicketkeeper-Batsman', batting: 'Right-hand bat', bowling: 'Right-arm medium', blood: 'O+', whatsapp: '9876543213' },
-  { id: 'p5', name: 'Hardik Pandya', number: 33, role: 'All-rounder', batting: 'Right-hand bat', bowling: 'Right-arm fast-medium', blood: 'AB+', whatsapp: '9876543214' },
-  { id: 'p6', name: 'Jasprit Bumrah', number: 93, role: 'Bowler', batting: 'Right-hand bat', bowling: 'Right-arm fast', blood: 'O-', whatsapp: '9876543215' },
-  { id: 'p7', name: 'Ravindra Jadeja', number: 8, role: 'All-rounder', batting: 'Left-hand bat', bowling: 'Left-arm orthodox', blood: 'A-', whatsapp: '9876543216' },
-  { id: 'p8', name: 'Ravichandran Ashwin', number: 99, role: 'Bowler', batting: 'Right-hand bat', bowling: 'Right-arm offbreak', blood: 'B-', whatsapp: '9876543217' }
-];
-
-const MOCK_PAYMENTS = [
-  // March 2026: All paid
-  { id: 'pay1', playerId: 'p1', month: '2026-03', status: 'Paid', amount: 500, date: '2026-03-05' },
-  { id: 'pay2', playerId: 'p2', month: '2026-03', status: 'Paid', amount: 500, date: '2026-03-04' },
-  { id: 'pay3', playerId: 'p3', month: '2026-03', status: 'Paid', amount: 500, date: '2026-03-10' },
-  { id: 'pay4', playerId: 'p4', month: '2026-03', status: 'Paid', amount: 500, date: '2026-03-02' },
-  { id: 'pay5', playerId: 'p5', month: '2026-03', status: 'Paid', amount: 500, date: '2026-03-06' },
-  { id: 'pay6', playerId: 'p6', month: '2026-03', status: 'Paid', amount: 500, date: '2026-03-08' },
-  { id: 'pay7', playerId: 'p7', month: '2026-03', status: 'Paid', amount: 500, date: '2026-03-05' },
-  { id: 'pay8', playerId: 'p8', month: '2026-03', status: 'Paid', amount: 500, date: '2026-03-07' },
-  
-  // April 2026: Some paid, some pending
-  { id: 'pay9', playerId: 'p1', month: '2026-04', status: 'Paid', amount: 500, date: '2026-04-05' },
-  { id: 'pay10', playerId: 'p2', month: '2026-04', status: 'Paid', amount: 500, date: '2026-04-03' },
-  { id: 'pay11', playerId: 'p3', month: '2026-04', status: 'Pending', amount: 0, date: '' },
-  { id: 'pay12', playerId: 'p4', month: '2026-04', status: 'Paid', amount: 500, date: '2026-04-01' },
-  { id: 'pay13', playerId: 'p5', month: '2026-04', status: 'Pending', amount: 0, date: '' },
-  { id: 'pay14', playerId: 'p6', month: '2026-04', status: 'Paid', amount: 500, date: '2026-04-12' },
-  { id: 'pay15', playerId: 'p7', month: '2026-04', status: 'Paid', amount: 500, date: '2026-04-05' },
-  { id: 'pay16', playerId: 'p8', month: '2026-04', status: 'Pending', amount: 0, date: '' },
-
-  // May 2026: Mostly pending (Initial state)
-  { id: 'pay17', playerId: 'p1', month: '2026-05', status: 'Paid', amount: 500, date: '2026-05-02' },
-  { id: 'pay18', playerId: 'p4', month: '2026-05', status: 'Paid', amount: 500, date: '2026-05-01' }
-];
-
-const MOCK_ATTENDANCE = [
-  // Yesterday's entry
-  { date: getPastDateString(1), playerId: 'p1', time: '06:15 AM' },
-  { date: getPastDateString(1), playerId: 'p2', time: '06:30 AM' },
-  { date: getPastDateString(1), playerId: 'p3', time: '06:20 AM' },
-  { date: getPastDateString(1), playerId: 'p4', time: '06:10 AM' },
-  { date: getPastDateString(1), playerId: 'p7', time: '06:45 AM' },
-  { date: getPastDateString(1), playerId: 'p8', time: '06:35 AM' }
-];
+const MOCK_PLAYERS = [];
+const MOCK_PAYMENTS = [];
+const MOCK_ATTENDANCE = [];
 
 // Helper to format date strings
 function getTodayDateString() {
@@ -107,16 +64,35 @@ let currentRole = null; // 'admin' or 'guest'
 
 // Initialize Database
 function initDatabase(forceReset = false) {
+  // Clear old seed/mock data from previous versions if detected
+  if (localStorage.getItem('rcc_players')) {
+    try {
+      const localPlayers = JSON.parse(localStorage.getItem('rcc_players'));
+      const hasMockData = localPlayers.some(p => p.id === 'p1' || p.id === 'p2' || p.id.startsWith('p_'));
+      if (hasMockData) {
+        localStorage.removeItem('rcc_players');
+        localStorage.removeItem('rcc_payments');
+        localStorage.removeItem('rcc_attendance');
+      }
+    } catch (e) {
+      localStorage.removeItem('rcc_players');
+      localStorage.removeItem('rcc_payments');
+      localStorage.removeItem('rcc_attendance');
+    }
+  }
+
   if (forceReset || !localStorage.getItem('rcc_players')) {
     localStorage.setItem('rcc_players', JSON.stringify(MOCK_PLAYERS));
     localStorage.setItem('rcc_payments', JSON.stringify(MOCK_PAYMENTS));
     localStorage.setItem('rcc_attendance', JSON.stringify(MOCK_ATTENDANCE));
-    showToast('Database reset to initial squad defaults.', 'success');
+    if (forceReset) {
+      showToast('Database reset to empty defaults.', 'success');
+    }
   }
 
-  players = JSON.parse(localStorage.getItem('rcc_players'));
-  payments = JSON.parse(localStorage.getItem('rcc_payments'));
-  attendance = JSON.parse(localStorage.getItem('rcc_attendance'));
+  players = JSON.parse(localStorage.getItem('rcc_players')) || [];
+  payments = JSON.parse(localStorage.getItem('rcc_payments')) || [];
+  attendance = JSON.parse(localStorage.getItem('rcc_attendance')) || [];
 }
 
 function saveData(key, data) {
@@ -295,6 +271,13 @@ function setupEventListeners() {
   document.getElementById('payment-form').addEventListener('submit', (e) => {
     e.preventDefault();
     savePaymentForm();
+  });
+
+  // Re-load details when month is changed in payment modal
+  document.getElementById('payment-month-select-modal').addEventListener('change', (e) => {
+    const playerId = document.getElementById('payment-player-id').value;
+    const newMonth = e.target.value;
+    loadPaymentLogForModal(playerId, newMonth);
   });
   
   // Payment Status Toggle Visibility of Amount/Date Fields
@@ -739,22 +722,7 @@ function formatDateDisplay(dateStr) {
 }
 
 // Log Payment Modal management
-function openPaymentModal(playerId, monthVal) {
-  const modal = document.getElementById('payment-modal');
-  const p = players.find(p => p.id === playerId);
-  
-  document.getElementById('payment-player-id').value = playerId;
-  document.getElementById('payment-month-val').value = monthVal;
-  
-  document.getElementById('payment-player-name').textContent = p.name;
-  document.getElementById('payment-player-number').textContent = `Jersey #${p.number}`;
-  
-  // Format Month header display e.g. "2026-05" -> "May 2026"
-  const parts = monthVal.split('-');
-  const monthName = getMonthNameByNum(parts[1]);
-  document.getElementById('payment-month-txt').textContent = `${monthName} ${parts[0]}`;
-
-  // Find existing log
+function loadPaymentLogForModal(playerId, monthVal) {
   const payLog = payments.find(pay => pay.playerId === playerId && pay.month === monthVal);
   const statusSelect = document.getElementById('payment-status');
   const amountInput = document.getElementById('payment-amount');
@@ -776,13 +744,26 @@ function openPaymentModal(playerId, monthVal) {
   } else {
     fields.style.display = 'none';
   }
+}
+
+function openPaymentModal(playerId, monthVal) {
+  const modal = document.getElementById('payment-modal');
+  const p = players.find(p => p.id === playerId);
+  
+  document.getElementById('payment-player-id').value = playerId;
+  document.getElementById('payment-month-select-modal').value = monthVal;
+  
+  document.getElementById('payment-player-name').textContent = p.name;
+  document.getElementById('payment-player-number').textContent = `Jersey #${p.number}`;
+  
+  loadPaymentLogForModal(playerId, monthVal);
 
   modal.classList.remove('hidden');
 }
 
 function savePaymentForm() {
   const playerId = document.getElementById('payment-player-id').value;
-  const month = document.getElementById('payment-month-val').value;
+  const month = document.getElementById('payment-month-select-modal').value;
   const status = document.getElementById('payment-status').value;
   const amount = parseInt(document.getElementById('payment-amount').value) || 0;
   const date = document.getElementById('payment-date').value;
