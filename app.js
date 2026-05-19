@@ -109,8 +109,11 @@ document.addEventListener('DOMContentLoaded', () => {
   setupEventListeners();
   setupSwipeDownToRefresh();
   
-  // Set current date on attendance view
-  document.getElementById('attendance-date').value = getTodayDateString();
+  // Populate month dropdowns dynamically (last 12 months)
+  populateMonthDropdowns();
+
+  // Populate Sunday dropdown for attendance
+  populateSundayDropdown();
   
   // Load Default Tab View
   switchTab('dashboard');
@@ -228,6 +231,11 @@ function setupEventListeners() {
       const activeTab = document.querySelector('.nav-item.active').dataset.tab;
       renderView(activeTab);
     }
+  });
+
+  // Dashboard Pending Month Select Change
+  document.getElementById('pending-month-select').addEventListener('change', () => {
+    renderDashboardPending();
   });
 
   // Dashboard Pending Search Filter
@@ -358,47 +366,106 @@ function showToast(message, type = 'info') {
 }
 
 // -------------------------------------------------------------
+// HELPERS: Month & Sunday Dropdown Populators
+// -------------------------------------------------------------
+function populateMonthDropdowns() {
+  const now = new Date();
+  const selectors = ['payment-month-select', 'payment-month-select-modal', 'pending-month-select'];
+  
+  selectors.forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    sel.innerHTML = '';
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const val = `${year}-${month}`;
+      const label = d.toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+      const opt = document.createElement('option');
+      opt.value = val;
+      opt.textContent = label;
+      if (i === 0) opt.selected = true;
+      sel.appendChild(opt);
+    }
+  });
+}
+
+function populateSundayDropdown() {
+  const sel = document.getElementById('attendance-date');
+  if (!sel) return;
+  sel.innerHTML = '';
+
+  // Generate last 12 Sundays going backwards from today
+  const now = new Date();
+  // Find most recent Sunday
+  const dayOfWeek = now.getDay(); // 0 = Sun
+  const latestSunday = new Date(now);
+  latestSunday.setDate(now.getDate() - dayOfWeek);
+
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(latestSunday);
+    d.setDate(latestSunday.getDate() - (i * 7));
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const val = `${year}-${month}-${day}`;
+    const label = d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+    const opt = document.createElement('option');
+    opt.value = val;
+    opt.textContent = label;
+    if (i === 0) opt.selected = true;
+    sel.appendChild(opt);
+  }
+}
+
+// -------------------------------------------------------------
 // DASHBOARD VIEW RENDERING
 // -------------------------------------------------------------
 function renderDashboard() {
   // Set total squad size
   document.getElementById('dash-total-members').textContent = players.length;
   
-  // Calculate collection for May 2026
-  const mayPayments = payments.filter(p => p.month === '2026-05' && p.status === 'Paid');
-  const totalMayCash = mayPayments.reduce((sum, p) => sum + p.amount, 0);
-  document.getElementById('dash-total-funds').textContent = `₹${totalMayCash}`;
-  
-  // Calculate today present
-  const todayStr = getTodayDateString();
-  const todayPresent = attendance.filter(a => a.date === todayStr);
-  document.getElementById('dash-attendance-today').textContent = todayPresent.length;
+  // Calculate collection for the selected pending month
+  const pendingMonthSel = document.getElementById('pending-month-select');
+  const activeMonth = pendingMonthSel ? pendingMonthSel.value : getCurrentMonthVal();
+  const monthPayments = payments.filter(p => p.month === activeMonth && p.status === 'Paid');
+  const totalFunds = monthPayments.reduce((sum, p) => sum + p.amount, 0);
+  document.getElementById('dash-total-funds').textContent = `₹${totalFunds}`;
 
-  // Calculate pending counts across current and past months
-  // Count how many players have a pending payment in May 2026
-  const pendingPlayersCount = getPendingPlayersForMonth('2026-05').length;
+  // Dynamically update the stat-label to show which month
+  const collLabel = document.querySelector('#dash-total-funds')?.closest('.stat-card')?.querySelector('.stat-label');
+  if (collLabel) collLabel.textContent = `Collection (${getMonthNameByNum(activeMonth.split('-')[1])})`;
+  
+  // Calculate present this Sunday (most recent sunday)
+  const now = new Date();
+  const dayOfWeek = now.getDay();
+  const latestSunday = new Date(now);
+  latestSunday.setDate(now.getDate() - dayOfWeek);
+  const sundayStr = latestSunday.toISOString().split('T')[0];
+  const sundayPresent = attendance.filter(a => a.date === sundayStr);
+  document.getElementById('dash-attendance-today').textContent = sundayPresent.length;
+
+  // Fund pending count for selected month
+  const pendingPlayersCount = getPendingPlayersForMonth(activeMonth).length;
   document.getElementById('dash-pending-funds-count').textContent = pendingPlayersCount;
   
   // Render pending lists
   renderDashboardPending();
 }
 
+function getCurrentMonthVal() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+// Simplified getPendingPlayersForMonth - only checks the given month
 function getPendingPlayersForMonth(monthVal) {
-  // A player is pending if they do not have a payment log with 'Paid' for this month
   const pendingList = [];
   players.forEach(p => {
     const payLog = payments.find(pay => pay.playerId === p.id && pay.month === monthVal);
     if (!payLog || payLog.status !== 'Paid') {
-      // Find other months pending too
-      const otherMonthsPending = [];
-      const pastMonths = ['2026-01', '2026-02', '2026-03', '2026-04'];
-      pastMonths.forEach(m => {
-        const pastPayLog = payments.find(pay => pay.playerId === p.id && pay.month === m);
-        if (!pastPayLog || pastPayLog.status !== 'Paid') {
-          otherMonthsPending.push(m.split('-')[1]); // get month number e.g. "04"
-        }
-      });
-      pendingList.push({ player: p, otherMonths: otherMonthsPending });
+      pendingList.push({ player: p });
     }
   });
   return pendingList;
@@ -407,10 +474,10 @@ function getPendingPlayersForMonth(monthVal) {
 function renderDashboardPending() {
   const container = document.getElementById('pending-funds-list');
   const searchVal = document.getElementById('pending-search-input').value.toLowerCase();
+  const selectedMonth = document.getElementById('pending-month-select')?.value || getCurrentMonthVal();
   container.innerHTML = '';
   
-  // We check for May 2026 (the current active tracking month)
-  const pendingList = getPendingPlayersForMonth('2026-05');
+  const pendingList = getPendingPlayersForMonth(selectedMonth);
   
   // Filter by search
   const filtered = pendingList.filter(item => {
@@ -423,21 +490,19 @@ function renderDashboardPending() {
     return;
   }
   
+  const selMonthParts = selectedMonth.split('-');
+  const selMonthLabel = `${getMonthNameByNum(selMonthParts[1])} ${selMonthParts[0]}`;
+
   filtered.forEach(item => {
     const p = item.player;
-    const monthsStr = item.otherMonths.length > 0 
-      ? `+ Owe: ${item.otherMonths.map(m => getMonthNameByNum(m)).join(', ')}`
-      : 'Current month only';
-      
     const li = document.createElement('li');
     li.className = 'pending-item';
     
-    // Check if current user is admin to show collect action
     const actionHtml = currentRole === 'admin' 
-      ? `<button class="pending-action-btn" onclick="quickCollectPayment('${p.id}', '2026-05')">Collect</button>`
+      ? `<button class="pending-action-btn" onclick="quickCollectPayment('${p.id}', '${selectedMonth}')">Collect</button>`
       : `<span class="pending-months-badge">Due</span>`;
 
-    const nudgeText = `Hi ${p.name}, this is a friendly reminder from RCC regarding your pending club fund contribution for ${getMonthNameByNum('05')} 2026. Please send your contribution at your convenience. Thanks! 🏁`;
+    const nudgeText = `Hi ${p.name}, this is a friendly reminder from RCC regarding your pending club fund contribution for ${selMonthLabel}. Please send your contribution at your convenience. Thanks! 🏁`;
     const whatsappHtml = p.whatsapp 
       ? `<a href="${getWhatsAppLink(p.whatsapp, p.name, nudgeText)}" target="_blank" class="pending-whatsapp-btn" title="Nudge on WhatsApp">
           <i class="fa-brands fa-whatsapp text-success"></i>
@@ -452,7 +517,7 @@ function renderDashboardPending() {
             <span class="name">${p.name}</span>
             ${whatsappHtml}
           </div>
-          <span class="text-gray" style="font-size: 10px;">${monthsStr}</span>
+          <span class="text-gray" style="font-size: 10px;">No contribution for ${selMonthLabel}</span>
         </div>
       </div>
       <div class="pending-item-right">
@@ -821,16 +886,42 @@ function renderAttendance() {
   
   listContainer.innerHTML = '';
   
-  // Today present count
+  // Logs for selected sunday
   const presentLogs = attendance.filter(a => a.date === dateVal);
   const presentCount = presentLogs.length;
   
-  // Render stats
+  // Update stats bar
   document.getElementById('attendance-stats-text').textContent = `Present: ${presentCount} / ${players.length} Players`;
   const pct = players.length > 0 ? (presentCount / players.length) * 100 : 0;
   document.getElementById('attendance-progress-fill').style.width = `${pct}%`;
 
-  // Filter players
+  // Render 'Who Was Present' chips panel
+  const presentPanel = document.getElementById('attendance-present-panel');
+  const presentChips = document.getElementById('present-chips');
+  const presentPanelCount = document.getElementById('present-panel-count');
+
+  presentChips.innerHTML = '';
+  presentPanelCount.textContent = presentCount;
+
+  if (presentCount > 0) {
+    presentPanel.style.display = 'block';
+    presentLogs.forEach(log => {
+      const player = players.find(p => p.id === log.playerId);
+      if (!player) return;
+      const chip = document.createElement('div');
+      chip.className = 'present-chip';
+      chip.innerHTML = `
+        <span class="chip-jersey">${player.number}</span>
+        <span class="chip-name">${player.name.split(' ')[0]}</span>
+        <span class="chip-time">${log.time}</span>
+      `;
+      presentChips.appendChild(chip);
+    });
+  } else {
+    presentPanel.style.display = 'none';
+  }
+
+  // Filter players for the roster list
   const filteredPlayers = players.filter(p => {
     return p.name.toLowerCase().includes(searchVal) || p.number.toString().includes(searchVal);
   });
@@ -840,8 +931,14 @@ function renderAttendance() {
     return;
   }
 
+  // Sort: present first, then absent
+  filteredPlayers.sort((a, b) => {
+    const aPresent = !!attendance.find(l => l.date === dateVal && l.playerId === a.id);
+    const bPresent = !!attendance.find(l => l.date === dateVal && l.playerId === b.id);
+    return bPresent - aPresent;
+  });
+
   filteredPlayers.forEach(p => {
-    // Find attendance log for this date and player
     const log = attendance.find(a => a.date === dateVal && a.playerId === p.id);
     const isPresent = !!log;
     
@@ -851,7 +948,6 @@ function renderAttendance() {
     let rightColHtml = '';
     
     if (isPresent) {
-      // Marked present: Show entry time
       const deleteBtn = currentRole === 'admin' 
         ? `<button class="icon-btn margin-right-xs" onclick="deleteAttendance('${p.id}', '${dateVal}')"><i class="fa-solid fa-trash text-danger" style="font-size: 12px;"></i></button>`
         : '';
@@ -863,7 +959,6 @@ function renderAttendance() {
         </div>
       `;
     } else {
-      // Absent / Not marked: Show action buttons if admin, else show Absent label
       if (currentRole === 'admin') {
         rightColHtml = `
           <div class="attendance-actions">

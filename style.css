@@ -1907,3 +1907,114 @@ main.app-content::-webkit-scrollbar-thumb {
 .pending-whatsapp-btn:hover {
   opacity: 0.8;
 }
+
+/* =====================================================
+ * ATTENDANCE PRESENT PANEL (Sunday Dashboard)
+ * ===================================================== */
+.attendance-present-panel {
+  margin-bottom: 14px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  background: rgba(16, 185, 129, 0.06);
+}
+
+.present-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.present-panel-title {
+  font-size: 13px;
+  font-weight: 700;
+  font-family: var(--font-sporty);
+  letter-spacing: 0.5px;
+  color: var(--success);
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.present-panel-count {
+  font-family: var(--font-sporty);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--success);
+}
+
+.present-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.present-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 12px;
+  padding: 8px 10px;
+  min-width: 60px;
+  text-align: center;
+  transition: transform 0.15s ease;
+}
+
+.present-chip:active {
+  transform: scale(0.96);
+}
+
+.chip-jersey {
+  font-family: var(--font-sporty);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--gold-bright);
+  line-height: 1;
+}
+
+.chip-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.chip-time {
+  font-size: 9px;
+  color: var(--success);
+  font-weight: 600;
+}
+
+/* Dashboard block-header with inline select dropdown */
+.block-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.block-header h3 {
+  font-family: var(--font-sporty);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.block-header select.form-control {
+  flex-shrink: 0;
+  background: rgba(3, 8, 15, 0.7);
+  border: 1px solid var(--border-color);
+  color: var(--gold-bright);
+  border-radius: 8px;
+  font-weight: 600;
+}

@@ -124,7 +124,7 @@
           <div class="stat-card">
             <div class="stat-icon"><i class="fa-solid fa-clipboard-user"></i></div>
             <div class="stat-info">
-              <span class="stat-label">Today Present</span>
+              <span class="stat-label">This Sunday</span>
               <span id="dash-attendance-today" class="stat-value">0</span>
             </div>
           </div>
@@ -140,8 +140,10 @@
         <!-- Pending Funds Block -->
         <div class="dashboard-block block-pending-funds">
           <div class="block-header">
-            <h3><i class="fa-solid fa-wallet text-warning"></i> PENDING FUNDS LOG</h3>
-            <span class="month-badge text-gold" id="pending-current-month">May 2026</span>
+            <h3><i class="fa-solid fa-wallet text-warning"></i> PENDING FUNDS</h3>
+            <select id="pending-month-select" class="form-control" style="width: auto; min-width: 110px; font-size: 12px; padding: 4px 8px;">
+              <!-- Populated by JS -->
+            </select>
           </div>
           
           <div class="search-filter-box">
@@ -252,15 +254,17 @@
       <!-- ==================== ATTENDANCE VIEW ==================== -->
       <section id="attendance-view" class="tab-view">
         <div class="section-header flex-col align-start">
-          <h2>ATTENDANCE MANAGER</h2>
-          <p class="subtitle text-gray">Only Entry Time is tracked</p>
+          <h2>SUNDAY ATTENDANCE</h2>
+          <p class="subtitle text-gray">Tracks practice sessions every Sunday</p>
         </div>
 
-        <!-- Date Selector & Day Stats -->
+        <!-- Sunday Selector -->
         <div class="attendance-control card-dark">
           <div class="filter-row">
-            <label for="attendance-date">Date:</label>
-            <input type="date" id="attendance-date" class="form-control">
+            <label for="attendance-date">Select Sunday:</label>
+            <select id="attendance-date" class="form-control">
+              <!-- Populated by JS with recent Sundays -->
+            </select>
           </div>
           <div class="attendance-summary">
             <div class="progress-container">
@@ -269,6 +273,17 @@
                 <div id="attendance-progress-fill" class="progress-bar-fill" style="width: 0%"></div>
               </div>
             </div>
+          </div>
+        </div>
+
+        <!-- Who Was Present - Visual Dashboard -->
+        <div id="attendance-present-panel" class="attendance-present-panel card-dark" style="display:none;">
+          <div class="present-panel-header">
+            <span class="present-panel-title"><i class="fa-solid fa-circle-check text-success"></i> Present</span>
+            <span id="present-panel-count" class="present-panel-count">0</span>
+          </div>
+          <div id="present-chips" class="present-chips">
+            <!-- Populated by JS -->
           </div>
         </div>
 
