@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rcc-cache-v1.4.1';
+const CACHE_NAME = 'rcc-cache-v1.4.3';
 const ASSETS = [
   './',
   './index.html',

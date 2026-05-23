@@ -56,12 +56,30 @@ function getWhatsAppLink(phone, playerName, text = '') {
   return url;
 }
 
+function getLatestSundayDateString() {
+  const now = new Date();
+  const dayOfWeek = now.getDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
+  const latestSunday = new Date(now);
+  
+  if (dayOfWeek >= 3) {
+    latestSunday.setDate(now.getDate() + (7 - dayOfWeek));
+  } else {
+    latestSunday.setDate(now.getDate() - dayOfWeek);
+  }
+  
+  const year = latestSunday.getFullYear();
+  const month = String(latestSunday.getMonth() + 1).padStart(2, '0');
+  const day = String(latestSunday.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 // Database state
 let players = [];
 let payments = [];
 let attendance = [];
 let spends = [];
 let currentRole = null; // 'admin' or 'guest'
+let cutoffTime = localStorage.getItem('rcc_cutoff_time') || '06:30 AM';
 
 // Initialize Database
 function initDatabase(forceReset = false) {
@@ -119,6 +137,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Populate Sunday dropdown for attendance
   populateSundayDropdown();
+  
+  // Set cutoff time field value
+  const cutoffInput = document.getElementById('settings-cutoff-time');
+  if (cutoffInput) {
+    cutoffInput.value = cutoffTime;
+  }
   
   // Load Default Tab View
   switchTab('dashboard');
@@ -283,14 +307,22 @@ function setupEventListeners() {
     renderAttendance();
   });
 
-  // Dashboard Reset Database Button
-  document.getElementById('dash-reset-db').addEventListener('click', () => {
-    if (confirm('Are you sure you want to reset all players, payments, attendance, and spends? This clears manual entries.')) {
-      initDatabase(true);
-      const activeTab = document.querySelector('.nav-item.active').dataset.tab;
-      renderView(activeTab);
-    }
-  });
+  // Settings Save Cutoff Time
+  const saveCutoffBtn = document.getElementById('settings-save-cutoff-btn');
+  if (saveCutoffBtn) {
+    saveCutoffBtn.addEventListener('click', () => {
+      const timeVal = document.getElementById('settings-cutoff-time').value.trim();
+      const timeRegex = /^(0?[1-9]|1[0-2]):[0-5][0-9]\s?(AM|PM|am|pm)$/i;
+      if (!timeRegex.test(timeVal)) {
+        showToast('Invalid time format. Please use HH:MM AM/PM (e.g., 06:30 AM)', 'danger');
+        return;
+      }
+      cutoffTime = timeVal.toUpperCase();
+      localStorage.setItem('rcc_cutoff_time', cutoffTime);
+      showToast('Cutoff time saved successfully!', 'success');
+      renderAttendance();
+    });
+  }
 
   // Dashboard Pending Month Select Change
   document.getElementById('pending-month-select').addEventListener('change', () => {
@@ -583,12 +615,9 @@ function populateSundayDropdown() {
   if (!sel) return;
   sel.innerHTML = '';
 
-  // Generate last 12 Sundays going backwards from today
-  const now = new Date();
-  // Find most recent Sunday
-  const dayOfWeek = now.getDay(); // 0 = Sun
-  const latestSunday = new Date(now);
-  latestSunday.setDate(now.getDate() - dayOfWeek);
+  const latestSundayStr = getLatestSundayDateString();
+  const parts = latestSundayStr.split('-');
+  const latestSunday = new Date(parts[0], parts[1] - 1, parts[2]);
 
   for (let i = 0; i < 12; i++) {
     const d = new Date(latestSunday);
@@ -624,12 +653,8 @@ function renderDashboard() {
   const collLabel = document.querySelector('#dash-total-funds')?.closest('.stat-card')?.querySelector('.stat-label');
   if (collLabel) collLabel.textContent = `Collection (${getMonthNameByNum(activeMonth.split('-')[1])})`;
   
-  // Calculate present this Sunday (most recent sunday)
-  const now = new Date();
-  const dayOfWeek = now.getDay();
-  const latestSunday = new Date(now);
-  latestSunday.setDate(now.getDate() - dayOfWeek);
-  const sundayStr = latestSunday.toISOString().split('T')[0];
+  // Calculate present this Sunday
+  const sundayStr = getLatestSundayDateString();
   const sundayPresent = attendance.filter(a => a.date === sundayStr);
   document.getElementById('dash-attendance-today').textContent = sundayPresent.length;
 
@@ -1314,6 +1339,36 @@ function generateMatrixImage() {
 // -------------------------------------------------------------
 let selectedPlayerForClock = null;
 
+function isLate(attendanceTime, cutoffTimeStr) {
+  if (!attendanceTime || !cutoffTimeStr) return false;
+  
+  const timeParts = attendanceTime.match(/^(0?[1-9]|1[0-2]):([0-5][0-9])\s?(AM|PM)$/i);
+  if (!timeParts) return false;
+  
+  let hours = parseInt(timeParts[1]);
+  const minutes = parseInt(timeParts[2]);
+  const ampm = timeParts[3].toUpperCase();
+  
+  if (ampm === 'PM' && hours < 12) hours += 12;
+  if (ampm === 'AM' && hours === 12) hours = 0;
+  
+  const attendanceMinutes = hours * 60 + minutes;
+  
+  const cutoffParts = cutoffTimeStr.match(/^(0?[1-9]|1[0-2]):([0-5][0-9])\s?(AM|PM)$/i);
+  if (!cutoffParts) return false;
+  
+  let cutHours = parseInt(cutoffParts[1]);
+  const cutMinutes = parseInt(cutoffParts[2]);
+  const cutAmPm = cutoffParts[3].toUpperCase();
+  
+  if (cutAmPm === 'PM' && cutHours < 12) cutHours += 12;
+  if (cutAmPm === 'AM' && cutHours === 12) cutHours = 0;
+  
+  const cutoffMinutes = cutHours * 60 + cutMinutes;
+  
+  return attendanceMinutes > cutoffMinutes;
+}
+
 function renderAttendance() {
   const dateVal = document.getElementById('attendance-date').value;
   const listContainer = document.getElementById('attendance-list');
@@ -1330,17 +1385,22 @@ function renderAttendance() {
   const pct = players.length > 0 ? (presentCount / players.length) * 100 : 0;
   document.getElementById('attendance-progress-fill').style.width = `${pct}%`;
 
+  // Split into On-Time and Late
+  const onTimeLogs = presentLogs.filter(log => !isLate(log.time, cutoffTime));
+  const lateLogs = presentLogs.filter(log => isLate(log.time, cutoffTime));
+  const absentPlayers = players.filter(p => !presentLogs.some(log => log.playerId === p.id));
+
   // Render 'Who Was Present' chips panel
   const presentPanel = document.getElementById('attendance-present-panel');
   const presentChips = document.getElementById('present-chips');
   const presentPanelCount = document.getElementById('present-panel-count');
 
   presentChips.innerHTML = '';
-  presentPanelCount.textContent = presentCount;
+  presentPanelCount.textContent = onTimeLogs.length;
 
-  if (presentCount > 0) {
+  if (onTimeLogs.length > 0) {
     presentPanel.style.display = 'block';
-    presentLogs.forEach(log => {
+    onTimeLogs.forEach(log => {
       const player = players.find(p => p.id === log.playerId);
       if (!player) return;
       const chip = document.createElement('div');
@@ -1354,6 +1414,57 @@ function renderAttendance() {
     });
   } else {
     presentPanel.style.display = 'none';
+  }
+
+  // Render 'Late Comers' chips panel
+  const latePanel = document.getElementById('attendance-late-panel');
+  const lateChips = document.getElementById('late-chips');
+  const latePanelCount = document.getElementById('late-panel-count');
+
+  lateChips.innerHTML = '';
+  latePanelCount.textContent = lateLogs.length;
+
+  if (lateLogs.length > 0) {
+    latePanel.style.display = 'block';
+    lateLogs.forEach(log => {
+      const player = players.find(p => p.id === log.playerId);
+      if (!player) return;
+      const chip = document.createElement('div');
+      chip.className = 'late-chip';
+      chip.innerHTML = `
+        <span class="chip-jersey">${player.number}</span>
+        <span class="chip-name">${player.name.split(' ')[0]}</span>
+        <span class="chip-time">${log.time}</span>
+      `;
+      lateChips.appendChild(chip);
+    });
+  } else {
+    latePanel.style.display = 'none';
+  }
+
+  // Render 'Absentees' chips panel
+  const absentPanel = document.getElementById('attendance-absent-panel');
+  const absentChips = document.getElementById('absent-chips');
+  const absentPanelCount = document.getElementById('absent-panel-count');
+
+  absentChips.innerHTML = '';
+  absentPanelCount.textContent = absentPlayers.length;
+
+  // Display absentees if there are any absentees
+  if (absentPlayers.length > 0) {
+    absentPanel.style.display = 'block';
+    absentPlayers.forEach(p => {
+      const chip = document.createElement('div');
+      chip.className = 'absent-chip';
+      chip.innerHTML = `
+        <span class="chip-jersey">${p.number}</span>
+        <span class="chip-name">${p.name.split(' ')[0]}</span>
+        <span class="chip-time" style="color: var(--danger);">Absent</span>
+      `;
+      absentChips.appendChild(chip);
+    });
+  } else {
+    absentPanel.style.display = 'none';
   }
 
   // Filter players for the roster list
@@ -1386,11 +1497,15 @@ function renderAttendance() {
       const deleteBtn = currentRole === 'admin' 
         ? `<button class="icon-btn margin-right-xs" onclick="deleteAttendance('${p.id}', '${dateVal}')"><i class="fa-solid fa-trash text-danger" style="font-size: 12px;"></i></button>`
         : '';
+      
+      const isPlayerLate = isLate(log.time, cutoffTime);
+      const badgeClass = isPlayerLate ? 'late' : '';
+      const iconClass = isPlayerLate ? 'fa-clock' : 'fa-check';
         
       rightColHtml = `
         <div class="flex-row">
           ${deleteBtn}
-          <span class="attendance-time-badge"><i class="fa-solid fa-check"></i> ${log.time}</span>
+          <span class="attendance-time-badge ${badgeClass}"><i class="fa-solid ${iconClass}"></i> ${log.time}</span>
         </div>
       `;
     } else {
@@ -1402,7 +1517,7 @@ function renderAttendance() {
           </div>
         `;
       } else {
-        rightColHtml = `<span class="text-gray" style="font-size: 12px; font-weight:600; padding: 4px 10px; border:1px solid var(--border-color); border-radius:6px;">Absent</span>`;
+        rightColHtml = `<span class="attendance-absent-badge">Absent</span>`;
       }
     }
 

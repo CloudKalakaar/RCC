@@ -950,7 +950,7 @@ main.app-content::-webkit-scrollbar-thumb {
 /* Quick Actions Grid */
 .quick-actions-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
 }
 
@@ -1476,9 +1476,9 @@ main.app-content::-webkit-scrollbar-thumb {
 .attendance-time-badge {
   font-size: 12px;
   font-weight: 700;
-  color: var(--gold-bright);
-  background-color: rgba(214, 168, 92, 0.12);
-  border: 1px solid rgba(214, 168, 92, 0.4);
+  color: var(--success);
+  background-color: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.4);
   padding: 5px 12px;
   border-radius: 20px;
   display: flex;
@@ -1490,7 +1490,32 @@ main.app-content::-webkit-scrollbar-thumb {
 
 .attendance-time-badge i {
   font-size: 11px;
-  color: var(--gold-bright);
+  color: var(--success);
+}
+
+.attendance-time-badge.late {
+  color: var(--warning);
+  background-color: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.attendance-time-badge.late i {
+  color: var(--warning);
+}
+
+.attendance-absent-badge {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--danger);
+  background-color: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  padding: 5px 12px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  letter-spacing: 0.5px;
+  font-family: var(--font-sporty);
 }
 
 .attendance-actions {
@@ -1983,6 +2008,70 @@ main.app-content::-webkit-scrollbar-thumb {
 
 .present-chip:active {
   transform: scale(0.96);
+}
+
+.attendance-late-panel {
+  margin-bottom: 14px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  background: rgba(245, 158, 11, 0.06);
+}
+
+.attendance-absent-panel {
+  margin-bottom: 14px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  background: rgba(239, 68, 68, 0.06);
+}
+
+.late-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 12px;
+  padding: 8px 10px;
+  min-width: 60px;
+  text-align: center;
+  transition: transform 0.15s ease;
+}
+
+.late-chip:active {
+  transform: scale(0.96);
+}
+
+.late-chip .chip-time {
+  font-size: 9px;
+  color: var(--warning);
+  font-weight: 600;
+}
+
+.absent-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 12px;
+  padding: 8px 10px;
+  min-width: 60px;
+  text-align: center;
+  transition: transform 0.15s ease;
+}
+
+.absent-chip:active {
+  transform: scale(0.96);
+}
+
+.absent-chip .chip-time {
+  font-size: 9px;
+  color: var(--danger);
+  font-weight: 600;
 }
 
 .chip-jersey {

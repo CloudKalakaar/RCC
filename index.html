@@ -20,7 +20,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
   <!-- Custom Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=1.4.1">
+  <link rel="stylesheet" href="style.css?v=1.4.3">
 </head>
 <body>
 
@@ -201,10 +201,6 @@
             <button class="action-card-btn" onclick="switchTab('attendance')">
               <i class="fa-solid fa-clock text-warning"></i>
               <span>Attendance</span>
-            </button>
-            <button class="action-card-btn" id="dash-reset-db">
-              <i class="fa-solid fa-rotate-left text-danger"></i>
-              <span>Reset Data</span>
             </button>
           </div>
         </div>
@@ -409,6 +405,28 @@
           </div>
         </div>
 
+        <!-- Late Comers - Visual Dashboard -->
+        <div id="attendance-late-panel" class="attendance-late-panel card-dark" style="display:none; margin-top: 12px;">
+          <div class="present-panel-header" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+            <span class="present-panel-title" style="color: var(--warning);"><i class="fa-solid fa-clock text-warning"></i> Late Comers</span>
+            <span id="late-panel-count" class="present-panel-count" style="color: var(--warning); background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.25); padding: 2px 8px; border-radius: 8px;">0</span>
+          </div>
+          <div id="late-chips" class="present-chips">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+
+        <!-- Absentees - Visual Dashboard -->
+        <div id="attendance-absent-panel" class="attendance-absent-panel card-dark" style="display:none; margin-top: 12px;">
+          <div class="present-panel-header" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+            <span class="present-panel-title" style="color: var(--danger);"><i class="fa-solid fa-circle-xmark text-danger"></i> Absentees</span>
+            <span id="absent-panel-count" class="present-panel-count" style="color: var(--danger); background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.25); padding: 2px 8px; border-radius: 8px;">0</span>
+          </div>
+          <div id="absent-chips" class="present-chips">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+
         <!-- Search Bar -->
         <div class="search-bar">
           <i class="fa-solid fa-magnifying-glass"></i>
@@ -425,6 +443,24 @@
       <section id="settings-view" class="tab-view">
         <div class="section-header">
           <h2>ADMIN SETTINGS</h2>
+        </div>
+
+        <div class="dashboard-block">
+          <div class="block-header">
+            <h3><i class="fa-solid fa-clock text-gold"></i> Attendance Settings</h3>
+          </div>
+          <p class="text-gray" style="font-size: 13px; margin-bottom: 15px;">
+            Set a cutoff time for Sunday practice. Attendance logs marked after this time will be classified as "Late".
+          </p>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <label class="text-gray" style="font-size: 12px; font-weight: 600;" for="settings-cutoff-time">Practice Cutoff Time (HH:MM AM/PM):</label>
+            <div style="display: flex; gap: 8px;">
+              <input type="text" id="settings-cutoff-time" class="form-control" placeholder="06:30 AM" style="max-width: 150px; font-size: 14px; text-align: center; font-weight: bold; height: 38px;">
+              <button id="settings-save-cutoff-btn" class="btn btn-primary" style="flex: 1; font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 6px; height: 38px;">
+                <i class="fa-solid fa-floppy-disk"></i> Save Cutoff Time
+              </button>
+            </div>
+          </div>
         </div>
 
         <div class="dashboard-block">
@@ -736,6 +772,6 @@
   <div id="toast-container" class="toast-container"></div>
 
   <!-- Custom JS Application logic -->
-  <script src="app.js?v=1.4.1"></script>
+  <script src="app.js?v=1.4.3"></script>
 </body>
 </html>
