@@ -61,6 +61,15 @@ body {
   flex-direction: column;
 }
 
+#app-shell {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
 /* Scrollable views inside main content */
 main.app-content {
   flex: 1;
@@ -845,6 +854,7 @@ main.app-content::-webkit-scrollbar-thumb {
 .pending-list-container {
   max-height: 200px;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .pending-list-container::-webkit-scrollbar {
@@ -1227,16 +1237,6 @@ main.app-content::-webkit-scrollbar-thumb {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 380px;
-  overflow-y: auto;
-}
-
-.payments-list::-webkit-scrollbar {
-  width: 3px;
-}
-.payments-list::-webkit-scrollbar-thumb {
-  background: var(--border-color);
-  border-radius: 5px;
 }
 
 .payment-row {
@@ -1814,8 +1814,25 @@ main.app-content::-webkit-scrollbar-thumb {
   to { transform: translateY(-10px) scale(0.95); opacity: 0; }
 }
 
+/* Responsive layout adjustments for Tablet viewports (full screen width) */
+@media (min-width: 600px) and (max-width: 1024px) {
+  .stats-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  
+  .roster-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+  }
+  
+  .app-nav {
+    max-width: 580px;
+  }
+}
+
 /* Responsive frame styling for Desktop viewports */
-@media (min-width: 600px) {
+@media (min-width: 1025px) {
   body {
     align-items: center;
     background-size: cover;
