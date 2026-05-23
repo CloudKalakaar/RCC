@@ -152,6 +152,12 @@ function updateRoleUI() {
     roleText.textContent = 'Guest Mode';
     document.body.classList.add('is-guest');
     document.body.classList.remove('is-admin');
+    
+    // Redirect if guest is currently on the settings tab
+    const activeTabItem = document.querySelector('.nav-item.active');
+    if (activeTabItem && activeTabItem.dataset.tab === 'settings') {
+      switchTab('dashboard');
+    }
   }
   
   // Toggle admin-only elements
@@ -243,6 +249,20 @@ function setupEventListeners() {
     renderDashboardPending();
   });
 
+  // Download backup button click handler
+  document.getElementById('download-backup-btn').addEventListener('click', downloadBackup);
+
+  // Upload restore button click handler
+  document.getElementById('upload-restore-btn').addEventListener('click', restoreBackup);
+
+  // Settings database reset button click handler
+  document.getElementById('settings-reset-db-btn').addEventListener('click', () => {
+    if (confirm('Are you sure you want to reset all players, payments, and attendance? This will completely wipe all manual entries.')) {
+      initDatabase(true);
+      switchTab('dashboard');
+    }
+  });
+
   // --- MODALS TOGGLERS ---
   
   // Add Player Modal Triggers
@@ -304,6 +324,12 @@ function setupEventListeners() {
 // TAB NAVIGATION LOGIC
 // -------------------------------------------------------------
 function switchTab(tabId) {
+  // If a guest tries to access settings, redirect to dashboard
+  if (tabId === 'settings' && currentRole !== 'admin') {
+    switchTab('dashboard');
+    return;
+  }
+
   // Update active state in bottom nav
   document.querySelectorAll('.nav-item').forEach(btn => {
     if (btn.dataset.tab === tabId) {
@@ -340,7 +366,82 @@ function renderView(tabId) {
     case 'attendance':
       renderAttendance();
       break;
+    case 'settings':
+      // Settings view is static, no dynamic rendering logic needed
+      break;
   }
+}
+
+// -------------------------------------------------------------
+// BACKUP & RESTORE UTILITIES
+// -------------------------------------------------------------
+function downloadBackup() {
+  const data = {
+    players: JSON.parse(localStorage.getItem('rcc_players')) || [],
+    payments: JSON.parse(localStorage.getItem('rcc_payments')) || [],
+    attendance: JSON.parse(localStorage.getItem('rcc_attendance')) || []
+  };
+  
+  const jsonStr = JSON.stringify(data, null, 2);
+  const blob = new Blob([jsonStr], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  
+  const a = document.createElement('a');
+  const d = new Date();
+  const dateStr = d.toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `rcc_backup_${dateStr}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  
+  showToast('Backup file downloaded successfully!', 'success');
+}
+
+function restoreBackup() {
+  const fileInput = document.getElementById('restore-file-input');
+  const file = fileInput.files[0];
+  
+  if (!file) {
+    showToast('Please select a JSON backup file first.', 'warning');
+    return;
+  }
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      
+      if (!data || typeof data !== 'object') {
+        throw new Error('Invalid JSON format');
+      }
+      if (!Array.isArray(data.players) || !Array.isArray(data.payments) || !Array.isArray(data.attendance)) {
+        throw new Error('Missing players, payments, or attendance arrays');
+      }
+      
+      // Save to localStorage
+      localStorage.setItem('rcc_players', JSON.stringify(data.players));
+      localStorage.setItem('rcc_payments', JSON.stringify(data.payments));
+      localStorage.setItem('rcc_attendance', JSON.stringify(data.attendance));
+      
+      // Reload in-memory databases and global variables
+      players = data.players;
+      payments = data.payments;
+      attendance = data.attendance;
+      
+      // Clear file input
+      fileInput.value = '';
+      
+      showToast('Database restored successfully!', 'success');
+      
+      // Redirect to dashboard and refresh it
+      switchTab('dashboard');
+    } catch (err) {
+      showToast('Restore failed: ' + err.message, 'danger');
+    }
+  };
+  reader.readAsText(file);
 }
 
 // -------------------------------------------------------------
@@ -649,12 +750,7 @@ function savePlayerForm() {
   const batting = document.getElementById('player-batting').value;
   const bowling = document.getElementById('player-bowling').value;
   
-  // Validation: unique jersey number
-  const duplicateNum = players.find(p => p.number === number && p.id !== id);
-  if (duplicateNum) {
-    showToast(`Jersey #${number} is already taken by ${duplicateNum.name}!`, 'danger');
-    return;
-  }
+  // Allowed duplicate jersey numbers per user request
 
   if (id) {
     // Edit Player
