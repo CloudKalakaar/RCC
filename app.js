@@ -60,6 +60,7 @@ function getWhatsAppLink(phone, playerName, text = '') {
 let players = [];
 let payments = [];
 let attendance = [];
+let spends = [];
 let currentRole = null; // 'admin' or 'guest'
 
 // Initialize Database
@@ -74,11 +75,13 @@ function initDatabase(forceReset = false) {
         localStorage.removeItem('rcc_players');
         localStorage.removeItem('rcc_payments');
         localStorage.removeItem('rcc_attendance');
+        localStorage.removeItem('rcc_spends');
       }
     } catch (e) {
       localStorage.removeItem('rcc_players');
       localStorage.removeItem('rcc_payments');
       localStorage.removeItem('rcc_attendance');
+      localStorage.removeItem('rcc_spends');
     }
   }
 
@@ -86,6 +89,7 @@ function initDatabase(forceReset = false) {
     localStorage.setItem('rcc_players', JSON.stringify(MOCK_PLAYERS));
     localStorage.setItem('rcc_payments', JSON.stringify(MOCK_PAYMENTS));
     localStorage.setItem('rcc_attendance', JSON.stringify(MOCK_ATTENDANCE));
+    localStorage.setItem('rcc_spends', JSON.stringify([]));
     if (forceReset) {
       showToast('Database reset to empty defaults.', 'success');
     }
@@ -94,6 +98,7 @@ function initDatabase(forceReset = false) {
   players = JSON.parse(localStorage.getItem('rcc_players')) || [];
   payments = JSON.parse(localStorage.getItem('rcc_payments')) || [];
   attendance = JSON.parse(localStorage.getItem('rcc_attendance')) || [];
+  spends = JSON.parse(localStorage.getItem('rcc_spends')) || [];
 }
 
 function saveData(key, data) {
@@ -205,6 +210,11 @@ function setupEventListeners() {
     });
   });
 
+  // Financial Overview Year Select Change
+  document.getElementById('fin-year-select').addEventListener('change', () => {
+    renderDashboardFinancials();
+  });
+
   // Roster Search Input Filter
   document.getElementById('roster-search').addEventListener('input', () => {
     renderRoster();
@@ -220,6 +230,49 @@ function setupEventListeners() {
     renderPayments();
   });
 
+  // Spends Year Select Change
+  document.getElementById('spends-year-select').addEventListener('change', () => {
+    renderSpends();
+  });
+
+  // Matrix Year Select Change
+  document.getElementById('matrix-year-select').addEventListener('change', () => {
+    renderMatrix();
+  });
+
+  // Toggle Contributions / Spends / Matrix
+  document.getElementById('btn-show-contributions').addEventListener('click', (e) => {
+    togglePaymentSubTab('contributions', e.currentTarget);
+  });
+  document.getElementById('btn-show-spends').addEventListener('click', (e) => {
+    togglePaymentSubTab('spends', e.currentTarget);
+  });
+  document.getElementById('btn-show-matrix').addEventListener('click', (e) => {
+    togglePaymentSubTab('matrix', e.currentTarget);
+  });
+
+  // Add Spend Button Trigger
+  document.getElementById('add-spend-btn').addEventListener('click', () => {
+    if (currentRole !== 'admin') return;
+    openSpendModal();
+  });
+
+  // Close Spend Modal Buttons
+  document.querySelectorAll('.close-spend-modal-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.getElementById('spend-modal').classList.add('hidden');
+    });
+  });
+
+  // Spend Form Submission handler
+  document.getElementById('spend-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    saveSpendForm();
+  });
+
+  // Download matrix image button click handler
+  document.getElementById('download-matrix-img-btn').addEventListener('click', downloadMatrixAsImage);
+
   // Attendance Date Change Handler
   document.getElementById('attendance-date').addEventListener('change', () => {
     renderAttendance();
@@ -232,7 +285,7 @@ function setupEventListeners() {
 
   // Dashboard Reset Database Button
   document.getElementById('dash-reset-db').addEventListener('click', () => {
-    if (confirm('Are you sure you want to reset all players, payments, and attendance to default values? This clears manual entries.')) {
+    if (confirm('Are you sure you want to reset all players, payments, attendance, and spends? This clears manual entries.')) {
       initDatabase(true);
       const activeTab = document.querySelector('.nav-item.active').dataset.tab;
       renderView(activeTab);
@@ -257,7 +310,7 @@ function setupEventListeners() {
 
   // Settings database reset button click handler
   document.getElementById('settings-reset-db-btn').addEventListener('click', () => {
-    if (confirm('Are you sure you want to reset all players, payments, and attendance? This will completely wipe all manual entries.')) {
+    if (confirm('Are you sure you want to reset all players, payments, attendance, and spends? This will completely wipe all manual entries.')) {
       initDatabase(true);
       switchTab('dashboard');
     }
@@ -312,8 +365,16 @@ function setupEventListeners() {
   // Payment Status Toggle Visibility of Amount/Date Fields
   document.getElementById('payment-status').addEventListener('change', (e) => {
     const fields = document.getElementById('payment-details-fields');
+    const amtGroup = document.getElementById('payment-amount-group');
+    const dateGroup = document.getElementById('payment-date-group');
     if (e.target.value === 'Paid') {
       fields.style.display = 'block';
+      amtGroup.style.display = 'block';
+      dateGroup.style.display = 'block';
+    } else if (e.target.value === 'Food') {
+      fields.style.display = 'block';
+      amtGroup.style.display = 'none';
+      dateGroup.style.display = 'block';
     } else {
       fields.style.display = 'none';
     }
@@ -361,7 +422,29 @@ function renderView(tabId) {
       renderRoster();
       break;
     case 'payments':
-      renderPayments();
+      // Determine which sub-tab is active
+      const activeSub = document.querySelector('#btn-show-contributions').classList.contains('btn-primary')
+        ? 'contributions'
+        : document.querySelector('#btn-show-spends').classList.contains('btn-primary')
+          ? 'spends'
+          : 'matrix';
+      
+      if (activeSub === 'contributions') {
+        document.getElementById('contributions-container').style.display = 'block';
+        document.getElementById('spends-container').style.display = 'none';
+        document.getElementById('matrix-container').style.display = 'none';
+        renderPayments();
+      } else if (activeSub === 'spends') {
+        document.getElementById('contributions-container').style.display = 'none';
+        document.getElementById('spends-container').style.display = 'block';
+        document.getElementById('matrix-container').style.display = 'none';
+        renderSpends();
+      } else {
+        document.getElementById('contributions-container').style.display = 'none';
+        document.getElementById('spends-container').style.display = 'none';
+        document.getElementById('matrix-container').style.display = 'block';
+        renderMatrix();
+      }
       break;
     case 'attendance':
       renderAttendance();
@@ -379,7 +462,8 @@ function downloadBackup() {
   const data = {
     players: JSON.parse(localStorage.getItem('rcc_players')) || [],
     payments: JSON.parse(localStorage.getItem('rcc_payments')) || [],
-    attendance: JSON.parse(localStorage.getItem('rcc_attendance')) || []
+    attendance: JSON.parse(localStorage.getItem('rcc_attendance')) || [],
+    spends: JSON.parse(localStorage.getItem('rcc_spends')) || []
   };
   
   const jsonStr = JSON.stringify(data, null, 2);
@@ -424,11 +508,13 @@ function restoreBackup() {
       localStorage.setItem('rcc_players', JSON.stringify(data.players));
       localStorage.setItem('rcc_payments', JSON.stringify(data.payments));
       localStorage.setItem('rcc_attendance', JSON.stringify(data.attendance));
+      localStorage.setItem('rcc_spends', JSON.stringify(data.spends || []));
       
       // Reload in-memory databases and global variables
       players = data.players;
       payments = data.payments;
       attendance = data.attendance;
+      spends = data.spends || [];
       
       // Clear file input
       fileInput.value = '';
@@ -553,6 +639,29 @@ function renderDashboard() {
   
   // Render pending lists
   renderDashboardPending();
+
+  // Render financial overview stats card
+  renderDashboardFinancials();
+}
+
+function renderDashboardFinancials() {
+  const finYearSelect = document.getElementById('fin-year-select');
+  if (!finYearSelect) return;
+  const selectedYear = finYearSelect.value;
+  
+  // Total contributions (Paid only, Food is 0/not counted)
+  const yearPayments = payments.filter(p => p.month.startsWith(selectedYear) && p.status === 'Paid');
+  const totalContribs = yearPayments.reduce((sum, p) => sum + p.amount, 0);
+  
+  // Total spends
+  const yearSpends = spends.filter(s => s.date.startsWith(selectedYear));
+  const totalSpent = yearSpends.reduce((sum, s) => sum + parseFloat(s.amount), 0);
+  
+  const balance = totalContribs - totalSpent;
+  
+  document.getElementById('fin-total-contribs').textContent = `₹${totalContribs.toLocaleString('en-IN')}`;
+  document.getElementById('fin-total-spends').textContent = `₹${totalSpent.toLocaleString('en-IN')}`;
+  document.getElementById('fin-total-balance').textContent = `₹${balance.toLocaleString('en-IN')}`;
 }
 
 function getCurrentMonthVal() {
@@ -565,7 +674,7 @@ function getPendingPlayersForMonth(monthVal) {
   const pendingList = [];
   players.forEach(p => {
     const payLog = payments.find(pay => pay.playerId === p.id && pay.month === monthVal);
-    if (!payLog || payLog.status !== 'Paid') {
+    if (!payLog || (payLog.status !== 'Paid' && payLog.status !== 'Food')) {
       pendingList.push({ player: p });
     }
   });
@@ -817,21 +926,17 @@ function renderPayments() {
   
   listContainer.innerHTML = '';
   
-  // Fetch fund logs for this month
-  const monthPayments = payments.filter(p => p.month === monthVal && p.status === 'Paid');
-  const collectedAmount = monthPayments.reduce((sum, p) => sum + p.amount, 0);
-  // Count players who have NOT contributed this month
+  const monthPayments = payments.filter(p => p.month === monthVal && (p.status === 'Paid' || p.status === 'Food'));
+  const collectedAmount = payments.filter(p => p.month === monthVal && p.status === 'Paid').reduce((sum, p) => sum + p.amount, 0);
   const notContributedCount = players.filter(p => {
     const log = payments.find(pay => pay.playerId === p.id && pay.month === monthVal);
-    return !log || log.status !== 'Paid';
+    return !log || (log.status !== 'Paid' && log.status !== 'Food');
   }).length;
 
-  // Render Stats
   document.getElementById('payment-target-amount').textContent = `${notContributedCount} players`;
   document.getElementById('payment-collected-amount').textContent = `₹${collectedAmount}`;
   document.getElementById('payment-pending-amount').textContent = `${notContributedCount} pending`;
 
-  // Filter players by search
   const filteredPlayers = players.filter(p => {
     return p.name.toLowerCase().includes(searchVal) || p.number.toString().includes(searchVal);
   });
@@ -842,18 +947,27 @@ function renderPayments() {
   }
 
   filteredPlayers.forEach(p => {
-    // Find payment record
     const payLog = payments.find(pay => pay.playerId === p.id && pay.month === monthVal);
+    const isContributed = payLog && (payLog.status === 'Paid' || payLog.status === 'Food');
+    const isFood = payLog && payLog.status === 'Food';
     const isPaid = payLog && payLog.status === 'Paid';
     
     const row = document.createElement('div');
-    row.className = `payment-row ${isPaid ? 'paid' : 'pending'}`;
+    row.className = `payment-row ${isContributed ? 'paid' : 'pending'}`;
     
-    const badgeText = isPaid ? `₹${payLog.amount}` : 'Not Contributed';
-    const badgeClass = isPaid ? 'payment-status-badge paid' : 'payment-status-badge pending';
-    const datePaidText = isPaid ? `On ${formatDateDisplay(payLog.date)}` : 'No fund for month';
+    let badgeText = 'Not Contributed';
+    if (isContributed) {
+      badgeText = isFood ? 'Food' : `₹${payLog.amount}`;
+    }
+    const badgeClass = isContributed ? 'payment-status-badge paid' : 'payment-status-badge pending';
+    
+    let extraStyle = '';
+    if (isFood) {
+      extraStyle = 'background: rgba(59, 130, 246, 0.15); border-color: var(--primary); color: var(--primary);';
+    }
+    
+    const datePaidText = isContributed ? `On ${formatDateDisplay(payLog.date)}` : 'No fund for month';
 
-    // Click handler only triggers modal if Admin
     row.addEventListener('click', () => {
       if (currentRole === 'admin') {
         openPaymentModal(p.id, monthVal);
@@ -870,7 +984,7 @@ function renderPayments() {
           <span class="details text-gray">${datePaidText}</span>
         </div>
       </div>
-      <span class="${badgeClass}">${badgeText}</span>
+      <span class="${badgeClass}" style="${extraStyle}">${badgeText}</span>
     `;
     
     listContainer.appendChild(row);
@@ -884,13 +998,14 @@ function formatDateDisplay(dateStr) {
   return d.toLocaleDateString('en-IN', options);
 }
 
-// Log Payment Modal management
 function loadPaymentLogForModal(playerId, monthVal) {
   const payLog = payments.find(pay => pay.playerId === playerId && pay.month === monthVal);
   const statusSelect = document.getElementById('payment-status');
   const amountInput = document.getElementById('payment-amount');
   const dateInput = document.getElementById('payment-date');
   const fields = document.getElementById('payment-details-fields');
+  const amtGroup = document.getElementById('payment-amount-group');
+  const dateGroup = document.getElementById('payment-date-group');
   
   if (payLog) {
     statusSelect.value = payLog.status;
@@ -904,6 +1019,12 @@ function loadPaymentLogForModal(playerId, monthVal) {
   
   if (statusSelect.value === 'Paid') {
     fields.style.display = 'block';
+    amtGroup.style.display = 'block';
+    dateGroup.style.display = 'block';
+  } else if (statusSelect.value === 'Food') {
+    fields.style.display = 'block';
+    amtGroup.style.display = 'none';
+    dateGroup.style.display = 'block';
   } else {
     fields.style.display = 'none';
   }
@@ -931,7 +1052,6 @@ function savePaymentForm() {
   const amountRaw = parseFloat(document.getElementById('payment-amount').value);
   const date = document.getElementById('payment-date').value;
 
-  // Validate amount when marking as contributed
   if (status === 'Paid' && (!amountRaw || amountRaw <= 0)) {
     showToast('Please enter a valid fund amount.', 'danger');
     return;
@@ -940,11 +1060,10 @@ function savePaymentForm() {
   const amount = status === 'Paid' ? amountRaw : 0;
   const player = players.find(p => p.id === playerId);
   
-  // Find or create record
   const logIndex = payments.findIndex(pay => pay.playerId === playerId && pay.month === month);
   
   if (logIndex > -1) {
-    payments[logIndex] = { ...payments[logIndex], status, amount, date: status === 'Paid' ? date : '' };
+    payments[logIndex] = { ...payments[logIndex], status, amount, date: (status === 'Paid' || status === 'Food') ? date : '' };
   } else {
     payments.push({
       id: 'pay_' + Date.now(),
@@ -952,22 +1071,242 @@ function savePaymentForm() {
       month,
       status,
       amount,
-      date: status === 'Paid' ? date : ''
+      date: (status === 'Paid' || status === 'Food') ? date : ''
     });
   }
 
   saveData('rcc_payments', payments);
   document.getElementById('payment-modal').classList.add('hidden');
   
-  // Refresh views
   const activeTab = document.querySelector('.nav-item.active').dataset.tab;
   renderView(activeTab);
   const parts = month.split('-');
   const monthLabel = `${getMonthNameByNum(parts[1])} ${parts[0]}`;
   const msg = status === 'Paid'
     ? `₹${amount} fund recorded for ${player.name} (${monthLabel})`
-    : `Marked ${player.name} as not contributed for ${monthLabel}`;
+    : status === 'Food'
+      ? `Marked ${player.name} as contributed via direct food for ${monthLabel}`
+      : `Marked ${player.name} as not contributed for ${monthLabel}`;
   showToast(msg, 'success');
+}
+
+function togglePaymentSubTab(tab, element) {
+  const buttons = element.parentNode.querySelectorAll('button');
+  buttons.forEach(btn => {
+    btn.classList.remove('btn-primary');
+    btn.classList.add('btn-secondary');
+  });
+  element.classList.remove('btn-secondary');
+  element.classList.add('btn-primary');
+
+  document.getElementById('contributions-container').style.display = 'none';
+  document.getElementById('spends-container').style.display = 'none';
+  document.getElementById('matrix-container').style.display = 'none';
+
+  if (tab === 'contributions') {
+    document.getElementById('contributions-container').style.display = 'block';
+    renderPayments();
+  } else if (tab === 'spends') {
+    document.getElementById('spends-container').style.display = 'block';
+    renderSpends();
+  } else if (tab === 'matrix') {
+    document.getElementById('matrix-container').style.display = 'block';
+    renderMatrix();
+  }
+}
+
+function renderSpends() {
+  const selectedYear = document.getElementById('spends-year-select').value;
+  const listContainer = document.getElementById('spends-list');
+  const totalLabel = document.getElementById('spends-total-year');
+  
+  if (!listContainer) return;
+  listContainer.innerHTML = '';
+  
+  const yearSpends = spends.filter(s => s.date.startsWith(selectedYear));
+  const total = yearSpends.reduce((sum, s) => sum + parseFloat(s.amount), 0);
+  
+  if (totalLabel) totalLabel.textContent = `₹${total.toLocaleString('en-IN')}`;
+  
+  if (yearSpends.length === 0) {
+    listContainer.innerHTML = '<div class="text-gray" style="text-align: center; padding: 20px;">No spends logged in this year.</div>';
+    return;
+  }
+  
+  yearSpends.sort((a, b) => b.date.localeCompare(a.date));
+  
+  yearSpends.forEach(s => {
+    const row = document.createElement('div');
+    row.className = 'payment-row pending';
+    row.style.borderLeft = '4px solid var(--danger)';
+    
+    const categoryIcon = getCategoryIcon(s.category);
+    
+    const deleteBtn = currentRole === 'admin'
+      ? `<button class="icon-btn text-danger" onclick="deleteSpend('${s.id}')" style="margin-left: 8px; border:none; background:none; font-size:14px; cursor:pointer;"><i class="fa-solid fa-trash"></i></button>`
+      : '';
+      
+    row.innerHTML = `
+      <div class="payment-row-left">
+        <span class="jersey" style="background: rgba(239, 68, 68, 0.1); border-color: var(--danger); color: var(--danger); font-size: 14px;">${categoryIcon}</span>
+        <div class="payment-row-info">
+          <span class="name">${s.description}</span>
+          <span class="details text-gray">${s.category} | ${formatDateDisplay(s.date)}</span>
+        </div>
+      </div>
+      <div class="flex-row" style="display:flex; align-items:center;">
+        <span class="payment-status-badge pending" style="background: rgba(239, 68, 68, 0.15); border-color: var(--danger); color: var(--danger);">₹${s.amount}</span>
+        ${deleteBtn}
+      </div>
+    `;
+    listContainer.appendChild(row);
+  });
+}
+
+function getCategoryIcon(category) {
+  switch (category) {
+    case 'Equipment': return '🏏';
+    case 'Ground/Maintenance': return '🌱';
+    case 'Tournament': return '🏆';
+    case 'Refreshments': return '🥤';
+    default: return '💸';
+  }
+}
+
+window.deleteSpend = function(id) {
+  if (confirm('Are you sure you want to delete this spend/expense entry?')) {
+    spends = spends.filter(s => s.id !== id);
+    saveData('rcc_spends', spends);
+    renderSpends();
+    renderDashboardFinancials();
+  }
+};
+
+function openSpendModal() {
+  const modal = document.getElementById('spend-modal');
+  document.getElementById('spend-form').reset();
+  document.getElementById('spend-id').value = '';
+  document.getElementById('spend-date').value = getTodayDateString();
+  modal.classList.remove('hidden');
+}
+
+function saveSpendForm() {
+  const description = document.getElementById('spend-description').value.trim();
+  const amount = parseFloat(document.getElementById('spend-amount').value);
+  const date = document.getElementById('spend-date').value;
+  const category = document.getElementById('spend-category').value;
+  
+  if (!description || !amount || amount <= 0 || !date) {
+    showToast('Please fill in all required fields.', 'danger');
+    return;
+  }
+  
+  const newSpend = {
+    id: 'spend_' + Date.now(),
+    description,
+    amount,
+    date,
+    category
+  };
+  
+  spends.push(newSpend);
+  saveData('rcc_spends', spends);
+  
+  document.getElementById('spend-modal').classList.add('hidden');
+  showToast('Spend logged successfully.', 'success');
+  
+  renderSpends();
+  renderDashboardFinancials();
+}
+
+function renderMatrix() {
+  const selectedYear = document.getElementById('matrix-year-select').value;
+  document.getElementById('matrix-title-year').textContent = `YEAR ${selectedYear}`;
+  
+  const tbody = document.getElementById('matrix-table-body');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  
+  if (players.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="13" class="text-gray" style="text-align: center; padding: 20px;">No players in roster.</td></tr>';
+    return;
+  }
+  
+  const sortedPlayers = [...players].sort((a, b) => a.name.localeCompare(b.name));
+  
+  sortedPlayers.forEach(p => {
+    const tr = document.createElement('tr');
+    tr.style.borderBottom = '1px solid rgba(255, 255, 255, 0.05)';
+    
+    const tdPlayer = document.createElement('td');
+    tdPlayer.style.textAlign = 'left';
+    tdPlayer.style.padding = '8px';
+    tdPlayer.style.fontWeight = '600';
+    tdPlayer.style.color = '#ffffff';
+    tdPlayer.innerHTML = `<span style="color: var(--gold-bright); font-weight: bold; margin-right: 6px;">#${p.number}</span> ${p.name}`;
+    tr.appendChild(tdPlayer);
+    
+    for (let m = 1; m <= 12; m++) {
+      const monthStr = String(m).padStart(2, '0');
+      const monthVal = `${selectedYear}-${monthStr}`;
+      
+      const payLog = payments.find(pay => pay.playerId === p.id && pay.month === monthVal);
+      const tdMonth = document.createElement('td');
+      tdMonth.style.padding = '6px 2px';
+      tdMonth.style.textAlign = 'center';
+      
+      let cellClass = 'pending';
+      let cellText = '✖';
+      
+      if (payLog) {
+        if (payLog.status === 'Paid') {
+          cellClass = 'paid';
+          cellText = '✔';
+        } else if (payLog.status === 'Food') {
+          cellClass = 'food';
+          cellText = '🍲';
+        }
+      }
+      
+      tdMonth.innerHTML = `<span class="matrix-cell ${cellClass}">${cellText}</span>`;
+      tr.appendChild(tdMonth);
+    }
+    
+    tbody.appendChild(tr);
+  });
+}
+
+function downloadMatrixAsImage() {
+  if (typeof html2canvas === 'undefined') {
+    showToast('Loading image generator, please wait...', 'info');
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+    script.onload = () => {
+      generateMatrixImage();
+    };
+    document.body.appendChild(script);
+  } else {
+    generateMatrixImage();
+  }
+}
+
+function generateMatrixImage() {
+  const element = document.getElementById('matrix-capture-area');
+  html2canvas(element, {
+    backgroundColor: '#03080f',
+    scale: 2,
+    logging: false,
+    useCORS: true
+  }).then(canvas => {
+    const link = document.createElement('a');
+    const year = document.getElementById('matrix-year-select').value;
+    link.download = `rcc_contributions_matrix_${year}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    showToast('Matrix grid image downloaded!', 'success');
+  }).catch(err => {
+    showToast('Failed to generate image: ' + err.message, 'danger');
+  });
 }
 
 // -------------------------------------------------------------

@@ -110,8 +110,7 @@ main.app-content::-webkit-scrollbar-thumb {
 }
 
 .tab-view.active {
-  display: flex !important;
-  flex-direction: column;
+  display: block !important;
   animation: tabFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
@@ -2053,4 +2052,51 @@ input[type="file"]::file-selector-button {
 
 input[type="file"]::file-selector-button:hover {
   background: rgba(255, 255, 255, 0.15);
+}
+
+/* Contribution Matrix Table Styles */
+.matrix-table {
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+.matrix-table th, .matrix-table td {
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 8px 4px;
+  text-align: center;
+  font-size: 12px;
+}
+
+.matrix-table th {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.matrix-cell {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 700;
+  margin: 0 auto;
+}
+
+.matrix-cell.paid {
+  background-color: rgba(16, 185, 129, 0.15);
+  border: 1px solid var(--success);
+  color: var(--success);
+}
+
+.matrix-cell.food {
+  background-color: rgba(59, 130, 246, 0.15);
+  border: 1px solid var(--primary);
+  color: var(--primary);
+}
+
+.matrix-cell.pending {
+  background-color: rgba(239, 68, 68, 0.15);
+  border: 1px solid var(--danger);
+  color: var(--danger);
 }
