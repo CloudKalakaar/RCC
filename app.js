@@ -1593,10 +1593,8 @@ window.openClockPicker = function(playerId, dateVal) {
   h = h % 12;
   clockHour = h ? h : 12;
   
-  // Round minutes to nearest 5 for snapping
-  let m = now.getMinutes();
-  clockMinute = Math.round(m / 5) * 5;
-  if (clockMinute === 60) clockMinute = 0;
+  // Set default minutes as absolute current minutes
+  clockMinute = now.getMinutes();
 
   clockMode = 'hours';
   
@@ -1714,7 +1712,7 @@ function rotateClockHand() {
   if (clockMode === 'hours') {
     angle = clockHour * 30; // 360 / 12 = 30 deg per hour
   } else {
-    angle = (clockMinute / 5) * 30; // 360 / 12 = 30 deg per 5 min segment
+    angle = clockMinute * 6; // 360 / 60 = 6 deg per minute
   }
   
   hand.style.transform = `rotate(${angle}deg)`;
@@ -1743,9 +1741,8 @@ function handleClockTouch(clientX, clientY) {
     if (hour > 12) hour = 12;
     clockHour = hour;
   } else {
-    // Snap to nearest 5 minutes
-    let seg = Math.round(deg / 30);
-    let minute = seg * 5;
+    // Snap to absolute minutes (360 degrees / 60 segments = 6 deg per minute)
+    let minute = Math.round(deg / 6);
     if (minute === 60) minute = 0;
     clockMinute = minute;
   }

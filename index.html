@@ -20,7 +20,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
   <!-- Custom Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=1.4.3">
+  <link rel="stylesheet" href="style.css?v=1.4.4">
 </head>
 <body>
 
@@ -373,7 +373,7 @@
       <section id="attendance-view" class="tab-view">
         <div class="section-header flex-col align-start">
           <h2>SUNDAY ATTENDANCE</h2>
-          <p class="subtitle text-gray">Tracks practice sessions every Sunday</p>
+          <p class="subtitle text-gray">Tracks match days every Sunday</p>
         </div>
 
         <!-- Sunday Selector -->
@@ -450,10 +450,10 @@
             <h3><i class="fa-solid fa-clock text-gold"></i> Attendance Settings</h3>
           </div>
           <p class="text-gray" style="font-size: 13px; margin-bottom: 15px;">
-            Set a cutoff time for Sunday practice. Attendance logs marked after this time will be classified as "Late".
+            Set a cutoff time for Sunday match day. Attendance logs marked after this time will be classified as "Late".
           </p>
           <div style="display: flex; flex-direction: column; gap: 8px;">
-            <label class="text-gray" style="font-size: 12px; font-weight: 600;" for="settings-cutoff-time">Practice Cutoff Time (HH:MM AM/PM):</label>
+            <label class="text-gray" style="font-size: 12px; font-weight: 600;" for="settings-cutoff-time">Match Day Cutoff Time (HH:MM AM/PM):</label>
             <div style="display: flex; gap: 8px;">
               <input type="text" id="settings-cutoff-time" class="form-control" placeholder="06:30 AM" style="max-width: 150px; font-size: 14px; text-align: center; font-weight: bold; height: 38px;">
               <button id="settings-save-cutoff-btn" class="btn btn-primary" style="flex: 1; font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 6px; height: 38px;">
@@ -772,6 +772,6 @@
   <div id="toast-container" class="toast-container"></div>
 
   <!-- Custom JS Application logic -->
-  <script src="app.js?v=1.4.3"></script>
+  <script src="app.js?v=1.4.4"></script>
 </body>
 </html>
